@@ -12,7 +12,7 @@ export const AppProvider = ({ children }) => {
   const [cards, setCards] = useState([]);
   
   useEffect(() => {
-    fetch('/cards.json')
+    fetch('./cards.json')
       .then(res => res.json())
       .then(data => setCards(data))
       .catch(err => console.error("Could not load cards", err));
