@@ -53,6 +53,20 @@ export const SwipeCard = ({ item, onSwipe }) => {
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <p style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--success)' }}>{item.answerShort}</p>
             <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{item.answerFull}</p>
+            {item.lawRef && (
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '8px 12px', 
+                backgroundColor: 'var(--bg-color)', 
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--primary-color)',
+                display: 'inline-block'
+              }}>
+                📖 {item.lawRef}
+              </div>
+            )}
             <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
               <span style={{ fontSize: '14px' }}>← Повторити</span>
               <span style={{ fontSize: '14px' }}>Знав →</span>
