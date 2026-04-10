@@ -1,5 +1,42 @@
 import React, { useState } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { Copy, Check } from 'lucide-react';
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        backgroundColor: copied ? 'var(--success)' : 'var(--bg-color)',
+        border: 'none',
+        cursor: 'pointer',
+        flexShrink: 0,
+        transition: 'background-color 0.2s ease'
+      }}
+    >
+      {copied
+        ? <Check size={14} color="#fff" />
+        : <Copy size={14} color="var(--text-secondary)" />
+      }
+    </button>
+  );
+};
 
 export const SwipeCard = ({ item, onSwipe }) => {
   const [revealed, setRevealed] = useState(false);
@@ -19,9 +56,9 @@ export const SwipeCard = ({ item, onSwipe }) => {
     <motion.div
       style={{
         position: 'absolute',
-        top: 20, 
-        bottom: 20, 
-        left: 20, 
+        top: 20,
+        bottom: 20,
+        left: 20,
         right: 20,
         backgroundColor: 'var(--panel-color)',
         borderRadius: 'var(--card-radius)',
@@ -40,9 +77,12 @@ export const SwipeCard = ({ item, onSwipe }) => {
       onClick={() => setRevealed(true)}
     >
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <h3 style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '15px', fontWeight: 600, textTransform: 'uppercase' }}>
-          {item.sourceSection}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600, textTransform: 'uppercase', margin: 0 }}>
+            {item.sourceSection}
+          </h3>
+          <CopyButton text={item.question} />
+        </div>
         <p style={{ fontSize: '20px', fontWeight: 500, lineHeight: 1.4, flex: 1 }}>
           {item.question}
         </p>
@@ -51,26 +91,31 @@ export const SwipeCard = ({ item, onSwipe }) => {
       <div style={{ flex: 1, borderTop: '2px solid var(--border)', paddingTop: '20px', overflowY: 'auto' }}>
         {revealed ? (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            {item.answerShort === item.answerFull ? (
-              <p style={{ fontWeight: 600, color: 'var(--success)', fontSize: '16px', lineHeight: 1.5 }}>{item.answerFull}</p>
-            ) : (
-              <>
-                <p style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--success)' }}>{item.answerShort}</p>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{item.answerFull}</p>
-              </>
-            )}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                {item.answerShort === item.answerFull ? (
+                  <p style={{ fontWeight: 600, color: 'var(--success)', fontSize: '16px', lineHeight: 1.5 }}>{item.answerFull}</p>
+                ) : (
+                  <>
+                    <p style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--success)' }}>{item.answerShort}</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{item.answerFull}</p>
+                  </>
+                )}
+              </div>
+              <CopyButton text={item.answerFull} />
+            </div>
             {item.lawRef && (
-              <div style={{ 
-                marginTop: '16px', 
-                padding: '8px 12px', 
-                backgroundColor: 'var(--bg-color)', 
+              <div style={{
+                marginTop: '16px',
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-color)',
                 borderRadius: '8px',
                 fontSize: '13px',
                 fontWeight: 600,
                 color: 'var(--primary-color)',
                 display: 'inline-block'
               }}>
-                📖 {item.lawRef}
+                {item.lawRef}
               </div>
             )}
             <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
@@ -84,13 +129,6 @@ export const SwipeCard = ({ item, onSwipe }) => {
           </div>
         )}
       </div>
-
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}} />
     </motion.div>
   );
 };

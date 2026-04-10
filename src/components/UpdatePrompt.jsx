@@ -1,20 +1,57 @@
-import React from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import React, { useState, useEffect } from 'react';
 
 export const UpdatePrompt = () => {
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegisteredSW(swUrl, r) {
-      // Check for updates every 30 minutes
-      if (r) {
-        setInterval(() => r.update(), 30 * 60 * 1000);
-      }
-    }
-  });
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [registration, setRegistration] = useState(null);
 
-  if (!needRefresh) return null;
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      setRegistration(reg);
+
+      // Check for waiting worker on load
+      if (reg.waiting) {
+        setShowUpdate(true);
+        return;
+      }
+
+      // Detect new worker installed
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            setShowUpdate(true);
+          }
+        });
+      });
+    });
+
+    // Reload when controller changes (new SW took over)
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+
+    // Check for updates every 30 minutes
+    const interval = setInterval(() => {
+      if (registration) registration.update();
+    }, 30 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdate = () => {
+    if (registration?.waiting) {
+      registration.waiting.postMessage('skipWaiting');
+    }
+  };
+
+  if (!showUpdate) return null;
 
   return (
     <div style={{
@@ -37,7 +74,7 @@ export const UpdatePrompt = () => {
         Доступна нова версія
       </span>
       <button
-        onClick={() => updateServiceWorker(true)}
+        onClick={handleUpdate}
         style={{
           backgroundColor: 'var(--accent)',
           color: '#fff',
