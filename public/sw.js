@@ -1,40 +1,43 @@
-const CACHE_VERSION = 'lawflash-v2';
-const STATIC_CACHE = CACHE_VERSION + '-static';
-const DATA_CACHE = CACHE_VERSION + '-data';
+const CACHE_NAME = 'lawflash-v3';
 
-// Install: pre-cache the app shell
-self.addEventListener('install', (event) => {
+// Install: take over immediately
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: delete ALL old caches, claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
+    caches.keys()
+      .then((keys) => Promise.all(
         keys
-          .filter((key) => key !== STATIC_CACHE && key !== DATA_CACHE)
+          .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch: Network-first for HTML and JSON, Cache-first for assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // cards.json — always try network first
-  if (url.pathname.endsWith('cards.json')) {
+  // version.json — NEVER cache, always network
+  if (url.pathname.endsWith('version.json')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // cards.json and HTML — network first, fall back to cache
+  if (url.pathname.endsWith('cards.json') ||
+      request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
           const clone = response.clone();
-          caches.open(DATA_CACHE).then((cache) => cache.put(request, clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
         .catch(() => caches.match(request))
@@ -42,36 +45,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML — network first (so new deploys are picked up)
-  if (request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  // Assets (JS, CSS, images) — cache first, then network
+  // Static assets — cache first, then network
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
-        const clone = response.clone();
-        caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return response;
       });
     })
   );
 });
 
-// Listen for messages to trigger update
+// Force-update on message
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+  }
+  if (event.data === 'clearCaches') {
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((key) => caches.delete(key)))
+    );
   }
 });

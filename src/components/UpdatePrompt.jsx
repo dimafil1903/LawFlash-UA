@@ -1,53 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+const CURRENT_VERSION_KEY = 'lawflash-app-version';
 
 export const UpdatePrompt = () => {
   const [showUpdate, setShowUpdate] = useState(false);
-  const [registration, setRegistration] = useState(null);
+  const regRef = useRef(null);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    // --- 1. Service Worker registration ---
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        regRef.current = reg;
 
-    navigator.serviceWorker.register('./sw.js').then((reg) => {
-      setRegistration(reg);
+        if (reg.waiting) {
+          setShowUpdate(true);
+          return;
+        }
 
-      // Check for waiting worker on load
-      if (reg.waiting) {
-        setShowUpdate(true);
-        return;
-      }
-
-      // Detect new worker installed
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            setShowUpdate(true);
-          }
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              setShowUpdate(true);
+            }
+          });
         });
       });
-    });
 
-    // Reload when controller changes (new SW took over)
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
+
+    // --- 2. Version check on visibility change (critical for iOS) ---
+    const checkVersion = async () => {
+      try {
+        const res = await fetch('./version.json?_=' + Date.now(), {
+          cache: 'no-store'
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverVersion = data.version;
+        const localVersion = localStorage.getItem(CURRENT_VERSION_KEY);
+
+        if (!localVersion) {
+          // First visit — save current version
+          localStorage.setItem(CURRENT_VERSION_KEY, serverVersion);
+          return;
+        }
+
+        if (localVersion !== serverVersion) {
+          setShowUpdate(true);
+        }
+      } catch {
+        // Offline or version.json not deployed yet — ignore
       }
-    });
+    };
 
-    // Check for updates every 30 minutes
-    const interval = setInterval(() => {
-      if (registration) registration.update();
-    }, 30 * 60 * 1000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkVersion();
+        // Also try to update the SW
+        if (regRef.current) regRef.current.update();
+      }
+    };
 
-    return () => clearInterval(interval);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Initial check after a short delay (let the app render first)
+    const initialTimer = setTimeout(checkVersion, 3000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearTimeout(initialTimer);
+    };
   }, []);
 
   const handleUpdate = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage('skipWaiting');
+    // Update stored version
+    fetch('./version.json?_=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => localStorage.setItem(CURRENT_VERSION_KEY, data.version))
+      .catch(() => {});
+
+    // Tell SW to clear caches and take over
+    if (regRef.current?.waiting) {
+      regRef.current.waiting.postMessage('skipWaiting');
+    } else if (navigator.serviceWorker?.controller) {
+      navigator.serviceWorker.controller.postMessage('clearCaches');
+      // Force reload after cache clear
+      setTimeout(() => window.location.reload(), 300);
+    } else {
+      window.location.reload();
     }
   };
 
