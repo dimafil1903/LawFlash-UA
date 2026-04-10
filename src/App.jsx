@@ -5,6 +5,8 @@ import { DailyReview } from './screens/DailyReview';
 import { Topics } from './screens/Topics';
 import { Stats } from './screens/Stats';
 import { Settings } from './screens/Settings';
+import { Algorithm } from './screens/Algorithm';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import './index.css';
 
 function App() {
@@ -24,6 +26,8 @@ function App() {
       {view === 'Topics' && <Topics navigate={navigate} />}
       {view === 'Stats' && <Stats navigate={navigate} />}
       {view === 'Settings' && <Settings navigate={navigate} />}
+      {view === 'Algorithm' && <Algorithm navigate={navigate} />}
+      <UpdatePrompt />
     </div>
   );
 }

@@ -51,8 +51,14 @@ export const SwipeCard = ({ item, onSwipe }) => {
       <div style={{ flex: 1, borderTop: '2px solid var(--border)', paddingTop: '20px', overflowY: 'auto' }}>
         {revealed ? (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <p style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--success)' }}>{item.answerShort}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{item.answerFull}</p>
+            {item.answerShort === item.answerFull ? (
+              <p style={{ fontWeight: 600, color: 'var(--success)', fontSize: '16px', lineHeight: 1.5 }}>{item.answerFull}</p>
+            ) : (
+              <>
+                <p style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--success)' }}>{item.answerShort}</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>{item.answerFull}</p>
+              </>
+            )}
             {item.lawRef && (
               <div style={{ 
                 marginTop: '16px', 
